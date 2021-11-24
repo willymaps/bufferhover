@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Line Hover</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" href="./css/mapstyle.css" />
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
+<script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+<style type="text/css">
+
+body {
+    font-family: sans-serif;
+}
+
+#mapWrap, .credit {
+    width:100%;
+    display: block;
+    font-family: sans-serif;
+    color:#555;
+    max-width:1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.credit {
+    line-height: 6px;
+    font-size: 12px;
+    margin-top:20px;
+    color:#888;
+}
+
+.credit a {
+    text-decoration:none;
+    color: coral;
+}
+
+#closeBtn {
+    display: none;
+    position: absolute;
+    background: red;
+    color:#fff;
+    font-weight: bold;
+    border:none;
+    padding:12px 20px;
+    top:10px;
+    right:10px;
+    z-index:10;
+}
+
+#closeBtn:hover {
+    cursor: pointer;
+}
+
+</style>
+</head>
+
+<body>
+<div id="mapWrap">
+    <div class="column left">
+        <h2>Using buffer polygons for easier line selection in Mapbox</h2>
+        <p>Generating buffer polygons using <a href="https://docs.mapbox.com/mapbox-gl-js/api/map/#map#queryrenderedfeatures">queryRenderedFeatures</a> and <a href="http://turfjs.org/" target="blank">Turf.js</a>.</p>
+        <div id="removeBuffer" class="active">Show Buffer</div>
+    </div>
+    <div class="column right">
+        <div id="map">
+            <button id="closeBtn">Exit Trail</button>
+            <div id="trailPopup"></div>
+        </div>
+    </div>
+</div>
+<div class="credit">
+    <p>Data: <a href="https://geohub.lio.gov.on.ca/datasets/mnrf::ontario-trail-network-otn-segment/about" target="_blank">Ontario Trail Network</a></p>
+    <p>Code: <a href="https://github.com/willymaps/bufferhover" target="_blank">Github</a></p>
+</div>
+
+<script src="./js/trailhover.js"></script>
+<script>
+
+let initLoad = true;
+document.getElementById("removeBuffer").addEventListener("click", displayBuffer);
+document.getElementById("closeBtn").addEventListener("click", trailBack);
+
+////////////////////////////////////////////////////////////////////////////////////// 
+// make sure your bounds contain the entire point layer.                            //
+// On map load it will generate the Buffer polygons based on the data within view. //
+//////////////////////////////////////////////////////////////////////////////////////
+
+var mapBounds = [[-79.376220703125,
+          44.41220239438348],[-77.9974365234375,
+          45.644768217751924]];
+
+var popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: false
+    });
+
+
+// please use your own token!
+mapboxgl.accessToken = 'pk.eyJ1Ijoid2lsbGlhbWJlbmRhdmlzIiwiYSI6IlVrb3BGVzQifQ.jeHxDCnpXXvAXKfAFEYG-A';
+
+
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/outdoors-v9',
+    center: [-78.5402,45.27],
+    zoom: 11.5,
+    maxBounds: mapBounds,
+    hash: false
+});
+
+
+map.on('load', function() {
+
+    // load your geojson
+    map.addSource('paths', {
+      type: 'geojson',
+      data: './data/trails_clipped.json',
+      promoteId: 'OGF_ID'
+    });
+
+    map.addSource('points', {
+      type: 'geojson',
+      data: './data/trail_points.json',
+      cluster: true,
+      clusterMaxZoom: 16, // Max zoom to cluster points on
+      clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
+      promoteId: 'OGF_ID'
+    });
+
+
+    // add the points data as circle type
+    map.addLayer({
+        'id': 'pathsLayer',
+        'type': 'line',
+        'source': 'paths',
+        'layout': {
+            'line-join': 'round',
+            'line-cap': 'round'
+        },
+        'paint': {
+            'line-color': [
+                'case',
+                    ['boolean', ['feature-state', 'hover'], false],
+                    'red',
+                    '#888'
+            ],
+            'line-width': [
+                'case',
+                    ['boolean', ['feature-state', 'hover'], false],
+                    4,
+                    1
+            ],
+        }
+    });
+
+    map.addLayer({
+        'id': 'pathsLayerCase',
+        'type': 'line',
+        'source': 'paths',
+        'layout': {
+            'line-join': 'round',
+            'line-cap': 'round'
+        },
+        'paint': {
+            'line-color': '#fff',
+            'line-width': 4
+        }
+    }, 'pathsLayer');
+
+    map.addLayer({
+        'id': 'pointsLayer',
+        'type': 'circle',
+        'source': 'points',
+        'filter': ['has', 'point_count'],
+        'paint': {
+            // Use step expressions (https://docs.mapbox.com/mapbox-gl-js/style-spec/#expressions-step)
+            // with three steps to implement three types of circles:
+            //   * Blue, 20px circles when point count is less than 100
+            //   * Yellow, 30px circles when point count is between 100 and 750
+            //   * Pink, 40px circles when point count is greater than or equal to 750
+            'circle-color': '#69a041',
+            'circle-opacity': 1,
+            'circle-radius': [
+                'step',
+                ['get', 'point_count'],
+                10,
+                2,
+                15,
+                3,
+                20
+            ],
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#fff'
+        }
+    });
+
+    map.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'points',
+        filter: ['has', 'point_count'],
+        layout: {
+            'text-field': '{point_count_abbreviated}',
+            'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+            'text-size': 14
+        },
+        paint: {
+            'text-color': '#fff'
+        }
+    });
+
+    map.addLayer({
+        id: 'unclustered-point',
+        type: 'circle',
+        source: 'points',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+            'circle-color': [
+                'case',
+                    ['boolean', ['feature-state', 'hover'], false],
+                    'red',
+                    '#69a041'
+            ],
+            'circle-radius': [
+                'case',
+                    ['boolean', ['feature-state', 'hover'], false],
+                    10,
+                    8
+            ],
+            'circle-stroke-width': [
+                'case',
+                    ['boolean', ['feature-state', 'hover'], false],
+                    2,
+                    1
+            ],
+            'circle-stroke-color': '#fff'
+        }
+    });
+    // wait for map to render fully
+    map.on('render', styleLoaded);
+
+ 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Declare the data attribute names you want in the popups. Need to match geojson property field names. //
+    // must include a unique ID field. Unique ID field must be an integer.                                  //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function styleLoaded () {
+      if (map.loaded()) {
+        console.log('map loaded');
+
+        queryMap();
+
+        map.off('render', styleLoaded);
+        map.on('zoomend', queryMap);
+        map.on('moveend', queryMap);
+      }
+    }
+
+});
+
+
+// btn function
+function displayBuffer() {
+    if (bufferShown == true) {
+        document.getElementById('removeBuffer').innerHTML = "Show Buffer";
+        bufferShown = false;
+        map.setPaintProperty('bufferLayer', 'fill-opacity', 0);
+    } else {
+        bufferShown = true;
+        document.getElementById('removeBuffer').innerHTML = "Hide Buffer"
+        map.setPaintProperty('bufferLayer', 'fill-opacity', 0.8);
+    }
+}
+
+
+</script>
+</body>
+</html>

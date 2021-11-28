@@ -47,7 +47,6 @@ function hoverState(e) {
             { hover: true }
         );
 
-        // const feature = map.querySourceFeatures("paths", { sourceLayer: ['pathsLayer'], filter: ['==', 'OGF_ID', hoveredPointId] });
         const attributes = {
             'OGF_ID': e.features[0].properties.OGF_ID,
             'TRAIL_NAME': e.features[0].properties.TRAIL_NAME,

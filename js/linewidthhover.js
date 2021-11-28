@@ -1,7 +1,7 @@
 let bufferShown = false;
 let hoveredPointId =  null;
 
-function addBufferLayer(data) {
+function addBufferLayer() {
 
     map.addLayer({
         'id': 'bufferLayer',

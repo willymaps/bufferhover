@@ -59,9 +59,8 @@ body {
 <body>
 <div id="mapWrap">
     <div class="column left">
-        <h2>Using buffer polygons for easier line selection in Mapbox</h2>
-        <p>Generating buffer polygons using <a href="https://docs.mapbox.com/mapbox-gl-js/api/map/#map#queryrenderedfeatures">queryRenderedFeatures</a> and <a href="http://turfjs.org/" target="blank">Turf.js</a>.</p>
-        <div id="removeBuffer" class="active">Show Buffer</div>
+        <h2>Using wide duplicate lines for easier selection in Mapbox</h2>
+        <div id="removeBuffer" class="active">Show Duplicate</div>
     </div>
     <div class="column right">
         <div id="map">
@@ -247,15 +246,15 @@ map.on('load', function() {
     // must include a unique ID field. Unique ID field must be an integer.                                  //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    map.on('render', styleLoaded);
+
     function styleLoaded () {
       if (map.loaded()) {
         console.log('map loaded');
 
-        queryMap();
+        addBufferLayer();
 
         map.off('render', styleLoaded);
-        map.on('zoomend', queryMap);
-        map.on('moveend', queryMap);
       }
     }
 
@@ -265,13 +264,13 @@ map.on('load', function() {
 // btn function
 function displayBuffer() {
     if (bufferShown == true) {
-        document.getElementById('removeBuffer').innerHTML = "Show Buffer";
+        document.getElementById('removeBuffer').innerHTML = "Show Duplicate";
         bufferShown = false;
-        map.setPaintProperty('bufferLayer', 'fill-opacity', 0);
+        map.setPaintProperty('bufferLayer', 'line-opacity', 0);
     } else {
         bufferShown = true;
-        document.getElementById('removeBuffer').innerHTML = "Hide Buffer"
-        map.setPaintProperty('bufferLayer', 'fill-opacity', 0.8);
+        document.getElementById('removeBuffer').innerHTML = "Hide Duplicate";
+        map.setPaintProperty('bufferLayer', 'line-opacity', 0.8);
     }
 }
 

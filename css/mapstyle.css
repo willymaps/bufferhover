@@ -27,6 +27,7 @@
 
 #trailPopup {
     position: absolute;
+    pointer-events: none;
     top: 10px;
     left: 10px;
     width: 100%;
